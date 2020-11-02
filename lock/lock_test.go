@@ -73,7 +73,7 @@ func TestSetOnePID(t *testing.T) {
 
 	pid, err := other.LastPID()
 	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("%d", 11), pid)
+	assert.Equal(t, int32(11), pid)
 }
 
 func TestSetMorePID(t *testing.T) {
@@ -91,7 +91,7 @@ func TestSetMorePID(t *testing.T) {
 
 	pid, err := other.LastPID()
 	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("%d", 13), pid)
+	assert.Equal(t, int32(13), pid)
 }
 
 // This test is using the shell package. This is just a convenient wrapper around cmd.exe and sh
@@ -157,4 +157,98 @@ func TestProcessNotFinished(t *testing.T) {
 	running, err := process.PidExists(int32(childPID))
 	assert.NoError(t, err)
 	assert.False(t, running)
+}
+
+func TestForceLockIsAvailable(t *testing.T) {
+	tempfile := filepath.Join(os.TempDir(), fmt.Sprintf("%s%d%d.tmp", "TestForceLockIsAvailable", time.Now().UnixNano(), os.Getpid()))
+	t.Log("Using temporary file", tempfile)
+	lock := NewLock(tempfile)
+	defer lock.Release()
+
+	assert.True(t, lock.ForceAcquire())
+}
+
+func TestForceLockWithNoPID(t *testing.T) {
+	tempfile := filepath.Join(os.TempDir(), fmt.Sprintf("%s%d%d.tmp", "TestForceLockWithNoPID", time.Now().UnixNano(), os.Getpid()))
+	t.Log("Using temporary file", tempfile)
+	lock := NewLock(tempfile)
+	defer lock.Release()
+
+	assert.True(t, lock.TryAcquire())
+	assert.True(t, lock.HasLocked())
+
+	other := NewLock(tempfile)
+	defer other.Release()
+	assert.False(t, other.ForceAcquire())
+	assert.False(t, other.HasLocked())
+}
+
+// This test is using the shell package. This is just a convenient wrapper around cmd.exe and sh
+func TestForceLockWithExpiredPID(t *testing.T) {
+	tempfile := filepath.Join(os.TempDir(), fmt.Sprintf("%s%d%d.tmp", "TestForceLockWithExpiredPID", time.Now().UnixNano(), os.Getpid()))
+	t.Log("Using temporary file", tempfile)
+	lock := NewLock(tempfile)
+	defer lock.Release()
+
+	assert.True(t, lock.TryAcquire())
+	assert.True(t, lock.HasLocked())
+
+	// run a child process
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	defer signal.Reset(os.Interrupt)
+
+	cmd := shell.NewSignalledCommand("echo", []string{"Hello World!"}, c)
+	cmd.SetPID = lock.SetPID
+	err := cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// child process should be finished
+
+	other := NewLock(tempfile)
+	defer other.Release()
+	assert.True(t, other.ForceAcquire())
+	assert.True(t, other.HasLocked())
+}
+
+// This test is using the shell package. This is just a convenient wrapper around cmd.exe and sh
+func TestForceLockWithRunningPID(t *testing.T) {
+	tempfile := filepath.Join(os.TempDir(), fmt.Sprintf("%s%d%d.tmp", "TestForceLockWithRunningPID", time.Now().UnixNano(), os.Getpid()))
+	t.Log("Using temporary file", tempfile)
+	lock := NewLock(tempfile)
+	defer lock.Release()
+
+	assert.True(t, lock.TryAcquire())
+	assert.True(t, lock.HasLocked())
+
+	// run a child process
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	defer signal.Reset(os.Interrupt)
+
+	// use ping to make sure the process is running for long enough to check its existence
+	var parameters []string
+	if runtime.GOOS == "windows" {
+		// it will run for 1 second
+		parameters = []string{"-n", "2", "127.0.0.1"}
+	} else {
+		// run for 200ms (don't need a whole second)
+		// 0.2 is the minimum in linux, 0.1 in darwin
+		parameters = []string{"-c", "2", "-i", "0.2", "127.0.0.1"}
+	}
+
+	cmd := shell.NewSignalledCommand("ping", parameters, c)
+	cmd.SetPID = func(pid int) {
+		lock.SetPID(pid)
+		// make sure we cannot break the lock right now
+		other := NewLock(tempfile)
+		defer other.Release()
+		assert.False(t, other.ForceAcquire())
+		assert.False(t, other.HasLocked())
+	}
+	err := cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
 }

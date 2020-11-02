@@ -6,8 +6,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 // SetPID is a callback that writes the PID in the lockfile
@@ -30,6 +33,33 @@ func NewLock(filename string) *Lock {
 
 // TryAcquire returns true if the lock was successfully set. It returns false if a lock already exists
 func (l *Lock) TryAcquire() bool {
+	return l.lock()
+}
+
+// ForceAcquire returns true if the lock was successfully set.
+//
+// If a lock file already exists, it reads the PID of the supposidly running process and check if
+// it's still running. If there no more process with this PID, it will try to delete the lock, then
+// recreate a new lock.
+func (l *Lock) ForceAcquire() bool {
+	// try nicely first
+	if l.lock() {
+		return true
+	}
+	pid, err := l.LastPID()
+	if err != nil {
+		return false
+	}
+	running, err := process.PidExists(pid)
+	if err != nil || running {
+		return false
+	}
+	// it looks like the process is no longer running, try to delete the lockfile
+	err = os.Remove(l.Lockfile)
+	if err != nil {
+		return false
+	}
+	// previous lock file removed, let's make a new one now
 	return l.lock()
 }
 
@@ -68,20 +98,23 @@ func (l *Lock) HasLocked() bool {
 }
 
 // LastPID returns the last PID written into the lock file.
-func (l *Lock) LastPID() (string, error) {
+func (l *Lock) LastPID() (int32, error) {
 	buffer, err := ioutil.ReadFile(l.Lockfile)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	// first line should be "who" owns the lock, any subsequent line will contain the restic PIDs
 	contents := strings.Split(string(buffer), "\n")
 	// we stop at line 1: line 0 should not contain any PID
 	for i := len(contents) - 1; i >= 1; i-- {
 		if contents[i] != "" {
-			return contents[i], nil
+			pid, err := strconv.ParseInt(contents[i], 10, 32)
+			if err == nil {
+				return int32(pid), nil
+			}
 		}
 	}
-	return "", errors.New("lock file does not contain any child process information")
+	return 0, errors.New("lock file does not contain any child process information")
 }
 
 func (l *Lock) lock() bool {
