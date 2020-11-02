@@ -72,7 +72,7 @@ func TestSetOnePID(t *testing.T) {
 }
 
 func TestSetMorePID(t *testing.T) {
-	tempfile := filepath.Join(os.TempDir(), fmt.Sprintf("%s%d%d.tmp", "TestSetPID", time.Now().UnixNano(), os.Getpid()))
+	tempfile := filepath.Join(os.TempDir(), fmt.Sprintf("%s%d%d.tmp", "TestSetMorePID", time.Now().UnixNano(), os.Getpid()))
 	t.Log("Using temporary file", tempfile)
 	lock := NewLock(tempfile)
 	defer lock.Release()

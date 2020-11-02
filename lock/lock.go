@@ -39,7 +39,6 @@ func (l *Lock) Release() {
 		_ = l.file.Close()
 	}
 	l.unlock()
-	l.locked = false
 }
 
 // Who owns the lock?
@@ -117,4 +116,5 @@ func (l *Lock) lock() bool {
 
 func (l *Lock) unlock() {
 	_ = os.Remove(l.Lockfile)
+	l.locked = false
 }
