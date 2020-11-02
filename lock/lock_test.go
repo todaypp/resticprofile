@@ -205,6 +205,8 @@ func TestForceLockWithExpiredPID(t *testing.T) {
 		t.Fatal(err)
 	}
 	// child process should be finished
+	// let's close the lockfile handle manually (unix doesn't actually care, but windows would complain)
+	lock.file.Close()
 
 	other := NewLock(tempfile)
 	defer other.Release()
