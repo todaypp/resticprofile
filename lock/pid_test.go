@@ -72,7 +72,7 @@ func TestProcessNotFinished(t *testing.T) {
 	}
 
 	// at that point, the child process should be finished
-	running, err := PidExists(childPID)
+	running, err := process.PidExists(int32(childPID))
 	assert.NoError(t, err)
 	assert.False(t, running)
 }
