@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/creativeprojects/resticprofile/shell"
+	"github.com/shirou/gopsutil/v3/process"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +33,7 @@ func TestProcessFinished(t *testing.T) {
 	}
 
 	// at that point, the child process should be finished
-	running, err := PidExists(childPID)
+	running, err := process.PidExists(int32(childPID))
 	assert.NoError(t, err)
 	assert.False(t, running)
 }
@@ -61,7 +62,7 @@ func TestProcessNotFinished(t *testing.T) {
 	// SetPID method is called right after we forked and have a PID available
 	cmd.SetPID = func(pid int) {
 		childPID = pid
-		running, err := PidExists(childPID)
+		running, err := process.PidExists(int32(childPID))
 		assert.NoError(t, err)
 		assert.True(t, running)
 	}
