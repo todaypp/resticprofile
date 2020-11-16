@@ -320,13 +320,23 @@ func TestLockIsRemovedAfterInterruptSignalInsideShell(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("cannot send a signal to a child process in Windows")
 	}
-	lockfile := "TestLockIsRemovedAfterInterruptSignal.lock"
+	lockfile := "TestLockIsRemovedAfterInterruptSignalInsideShell.lock"
 	// make sure there's no remaining lockfile from a failed test
 	_ = os.Remove(lockfile)
 
+	template := `
+trap 'kill -TERM $PID' TERM INT
+%s -wait 400 -lock %s &
+PID=$!
+wait $PID
+trap - TERM INT
+wait $PID
+EXIT_STATUS=$?
+`
+
 	var err error
 	buffer := &bytes.Buffer{}
-	cmd := exec.Command(helperBinary, "-wait", "400", "-lock", lockfile)
+	cmd := exec.Command("sh", "-c", fmt.Sprintf(template, helperBinary, lockfile))
 	cmd.Stdout = buffer
 	cmd.Stderr = buffer
 
