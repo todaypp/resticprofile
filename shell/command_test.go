@@ -44,7 +44,7 @@ func TestShellCommandWithArguments(t *testing.T) {
 		`backup`,
 		`.`,
 	}
-	command, args, err := getShellCommand(testCommand, testArgs)
+	command, args, err := getShellCommand(testCommand, testArgs, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestShellCommand(t *testing.T) {
 	testCommand := "/bin/restic -v --exclude-file \"excludes\" --repo \"/Volumes/RAMDisk\" backup ."
 	testArgs := []string{}
 
-	command, args, err := getShellCommand(testCommand, testArgs)
+	command, args, err := getShellCommand(testCommand, testArgs, false)
 	if err != nil {
 		t.Fatal(err)
 	}

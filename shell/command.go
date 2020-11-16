@@ -14,16 +14,17 @@ type SetPID func(pid int)
 
 // Command holds the configuration to run a shell command
 type Command struct {
-	Command   string
-	Arguments []string
-	Environ   []string
-	Dir       string
-	Stdin     io.Reader
-	Stdout    io.Writer
-	Stderr    io.Writer
-	SetPID    SetPID
-	sigChan   chan os.Signal
-	done      chan interface{}
+	Command               string
+	Arguments             []string
+	Environ               []string
+	Dir                   string
+	Stdin                 io.Reader
+	Stdout                io.Writer
+	Stderr                io.Writer
+	SetPID                SetPID
+	PropagateSignalScript bool
+	sigChan               chan os.Signal
+	done                  chan interface{}
 }
 
 // NewCommand instantiate a default Command without receiving OS signals (SIGTERM, etc.)
@@ -50,7 +51,7 @@ func NewSignalledCommand(command string, args []string, c chan os.Signal) *Comma
 func (c *Command) Run() error {
 	var err error
 
-	command, args, err := getShellCommand(c.Command, c.Arguments)
+	command, args, err := c.getShellCommand()
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,12 @@ func (c *Command) Run() error {
 }
 
 // getShellCommand transforms the command line and arguments to be launched via a shell (sh or cmd.exe)
-func getShellCommand(command string, args []string) (string, []string, error) {
+func (c *Command) getShellCommand() (string, []string, error) {
+	return getShellCommand(c.Command, c.Arguments, c.PropagateSignalScript)
+}
+
+// getShellCommand transforms the command line and arguments to be launched via a shell (sh or cmd.exe)
+func getShellCommand(command string, args []string, propagateSignalScript bool) (string, []string, error) {
 
 	if runtime.GOOS == "windows" {
 		shell, err := exec.LookPath("cmd.exe")
@@ -100,6 +106,10 @@ func getShellCommand(command string, args []string) (string, []string, error) {
 	shell, err := exec.LookPath("sh")
 	if err != nil {
 		return "", nil, fmt.Errorf("cannot find shell executable (sh) in path")
+	}
+
+	if propagateSignalScript {
+		return getSignalPropagationShellScript(shell, command, args)
 	}
 	// Flatten all arguments into one string, sh expects one big string
 	flatCommand := append([]string{command}, args...)
@@ -124,4 +134,20 @@ func removeQuotes(args []string) []string {
 		}
 	}
 	return args
+}
+
+// getSignalPropagationShellScript returns a shell script to make sure all signals are sent to
+// the commands started by the shell.
+// See http://veithen.io/2014/11/16/sigterm-propagation.html
+func getSignalPropagationShellScript(shell, command string, args []string) (string, []string, error) {
+	template := `
+trap 'kill -TERM $PID' TERM INT
+%s %s &
+PID=$!
+wait $PID
+trap - TERM INT
+wait $PID
+EXIT_STATUS=$?
+`
+	return shell, []string{"-c", fmt.Sprintf(template, command, strings.Join(args, " "))}, nil
 }
