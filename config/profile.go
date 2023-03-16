@@ -684,30 +684,26 @@ func (p *Profile) SchedulableCommands() (commands []string) {
 	return
 }
 
-// Schedules returns a slice of ScheduleConfig that satisfy the schedule.Config interface
-func (p *Profile) Schedules() []*ScheduleConfig {
+// Schedules returns a Schedule entry for each command that has a schedule configuration
+func (p *Profile) Schedules() []*Schedule {
 	// All SectionWithSchedule (backup, check, prune, etc)
 	sections := GetSectionsWith[Scheduling](p)
-	configs := make([]*ScheduleConfig, 0, len(sections))
+	configs := make([]*Schedule, 0, len(sections))
 
 	for name, section := range sections {
-		if s := section.GetSchedule(); len(s.Schedule) > 0 {
-			env := map[string]string{}
-			for key, value := range p.Environment {
-				env[key] = value.Value()
-			}
-
-			config := &ScheduleConfig{
-				Title:       p.Name,
-				SubTitle:    name,
-				Schedules:   s.Schedule,
-				Permission:  s.SchedulePermission,
-				Environment: env,
-				Log:         s.ScheduleLog,
-				LockMode:    s.ScheduleLockMode,
-				LockWait:    s.ScheduleLockWait,
-				Priority:    s.SchedulePriority,
-				ConfigFile:  p.config.configFile,
+		if s := section.GetSchedule(); s != nil && s.Schedule != nil && len(s.Schedule) > 0 {
+			config := &Schedule{
+				config:     p.config,
+				Name:       "",
+				Group:      "",
+				Profiles:   []string{p.Name},
+				Command:    name,
+				Schedule:   s.Schedule,
+				Permission: s.SchedulePermission,
+				Log:        s.ScheduleLog,
+				LockMode:   s.ScheduleLockMode,
+				LockWait:   s.ScheduleLockWait,
+				Priority:   s.SchedulePriority,
 			}
 
 			configs = append(configs, config)

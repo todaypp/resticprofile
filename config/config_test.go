@@ -603,7 +603,7 @@ two:
 	}
 }
 
-func TestGetSchedules(t *testing.T) {
+func TestGetSchedulesV1(t *testing.T) {
 	content := `---
 profile:
   backup:
@@ -618,7 +618,7 @@ profile:
 	require.NoError(t, err)
 	assert.Len(t, schedules, 1)
 
-	assert.Equal(t, []string{"daily"}, schedules[0].Schedules)
+	assert.Equal(t, []string{"daily"}, schedules[0].Schedule)
 }
 
 func TestRegressionInheritanceListMerging(t *testing.T) {

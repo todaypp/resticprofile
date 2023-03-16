@@ -661,7 +661,7 @@ profile:
 	}
 }
 
-func TestSchedules(t *testing.T) {
+func TestSchedulesV1(t *testing.T) {
 	assert := assert.New(t)
 
 	testConfig := func(command string, scheduled bool) string {
@@ -693,9 +693,9 @@ initialize = true
 
 		config := profile.Schedules()
 		assert.Len(config, 1)
-		assert.Equal(config[0].SubTitle, command)
-		assert.Len(config[0].Schedules, 1)
-		assert.Equal(config[0].Schedules[0], "@hourly")
+		assert.Equal(config[0].Command, command)
+		assert.Len(config[0].Schedule, 1)
+		assert.Equal(config[0].Schedule[0], "@hourly")
 
 		// Check that schedule is optional
 		profile, err = getProfile("toml", testConfig(command, false), "profile", "")

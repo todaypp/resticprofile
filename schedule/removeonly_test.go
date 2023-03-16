@@ -20,7 +20,6 @@ func TestNewRemoveOnlyConfig(t *testing.T) {
 	assert.Equal(t, "", cfg.WorkingDirectory)
 	assert.Equal(t, "", cfg.Command)
 	assert.Empty(t, cfg.Arguments)
-	assert.Empty(t, cfg.Environment)
 	assert.Equal(t, "", cfg.Priority)
 	assert.Equal(t, "", cfg.Log)
 	assert.Equal(t, "", cfg.ConfigFile)

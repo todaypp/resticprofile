@@ -126,6 +126,13 @@ func getOwnCommands() []ownCommand {
 			flags:             map[string]string{"--all": "display the status of all scheduled jobs of all profiles"},
 		},
 		{
+			name:              "schedules",
+			description:       "display the configuration of all scheduled jobs",
+			action:            schedules,
+			needConfiguration: true,
+			hide:              false,
+		},
+		{
 			name:              "generate",
 			description:       "generate resources such as random key, bash/zsh completion scripts, etc.",
 			longDescription:   "The \"generate\" command is used to create various resources and print them to stdout",
@@ -377,10 +384,13 @@ func showProfile(output io.Writer, c *config.Config, flags commandLineFlags, arg
 	return nil
 }
 
-func showSchedules(output io.Writer, schedulesConfig []*config.ScheduleConfig) {
-	for _, schedule := range schedulesConfig {
-		export := schedule.Export()
-		err := config.ShowStruct(output, export, "schedule "+export.Profiles[0]+"-"+export.Command)
+func showSchedules(output io.Writer, schedules []*config.Schedule) {
+	for _, schedule := range schedules {
+		name := schedule.Name
+		if name == "" {
+			name = "schedule " + schedule.Profiles[0] + "-" + schedule.Command
+		}
+		err := config.ShowStruct(output, schedule, name)
 		if err != nil {
 			fmt.Fprintln(output, err)
 		}
@@ -576,7 +586,13 @@ func getScheduleJobs(c *config.Config, flags commandLineFlags) (schedule.Schedul
 		return nil, nil, nil, fmt.Errorf("cannot load profile '%s': %w", flags.name, err)
 	}
 
-	return schedule.NewSchedulerConfig(global), profile, profile.Schedules(), nil
+	schedules := profile.Schedules()
+	schedulesConfig := make([]*config.ScheduleConfig, len(schedules))
+	for index, schedule := range schedules {
+		schedulesConfig[index] = schedule.GetScheduleConfig()
+	}
+
+	return schedule.NewSchedulerConfig(global), profile, schedulesConfig, nil
 }
 
 func requireScheduleJobs(schedules []*config.ScheduleConfig, flags commandLineFlags) error {
@@ -606,6 +622,15 @@ func getRemovableScheduleJobs(c *config.Config, flags commandLineFlags) (schedul
 	}
 
 	return scheduler, profile, schedules, nil
+}
+
+func schedules(w io.Writer, c *config.Config, flags commandLineFlags, args []string) error {
+	schedules, err := c.GetSchedules()
+	if err != nil {
+		return err
+	}
+	showSchedules(w, schedules)
+	return nil
 }
 
 func testElevationCommand(_ io.Writer, c *config.Config, flags commandLineFlags, args []string) error {

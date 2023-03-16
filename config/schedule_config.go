@@ -21,17 +21,16 @@ const (
 
 // ScheduleConfig contains all information to schedule a profile command
 type ScheduleConfig struct {
-	Title            string
-	SubTitle         string
+	Title            string // Profile name
+	SubTitle         string // Command name
 	Schedules        []string
 	Permission       string
 	WorkingDirectory string
 	Command          string
 	Arguments        []string
-	Environment      map[string]string
 	JobDescription   string
 	TimerDescription string
-	Priority         string
+	Priority         string // Priority is either "background" or "standard"
 	Log              string
 	LockMode         string
 	LockWait         time.Duration
@@ -55,7 +54,7 @@ func (s *ScheduleConfig) SetCommand(wd, command string, args []string) {
 	s.Arguments = args
 }
 
-// Priority is either "background" or "standard"
+// GetPriority is either "background" or "standard"
 func (s *ScheduleConfig) GetPriority() string {
 	s.Priority = strings.ToLower(s.Priority)
 	// default value for priority is "background"
@@ -97,17 +96,4 @@ func (s *ScheduleConfig) SetFlag(name, value string) {
 		s.Flags = make(map[string]string)
 	}
 	s.Flags[name] = value
-}
-
-func (s *ScheduleConfig) Export() Schedule {
-	return Schedule{
-		Profiles:   []string{s.Title},
-		Command:    s.SubTitle,
-		Permission: s.Permission,
-		Log:        s.Log,
-		Priority:   s.Priority,
-		LockMode:   s.LockMode,
-		LockWait:   s.LockWait,
-		Schedule:   s.Schedules,
-	}
 }

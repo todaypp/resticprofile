@@ -1,7 +1,7 @@
 {{ define "tags" }}
-        tag:
-        - dev
-        - {{ .Profile.Name }}
+            tag:
+            - dev
+            - {{ .Profile.Name }}
 {{ end -}}
 
 version: 2
